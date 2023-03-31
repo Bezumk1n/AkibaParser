@@ -14,7 +14,7 @@ namespace Akiba.Services
         public async Task Parse()
         {
             Console.WriteLine("Начинаю парсинг Akiba.su");
-            
+
             using (var client = new HttpClient())
             {
                 bool done = false;
@@ -77,24 +77,25 @@ namespace Akiba.Services
                     link.IsParsed = true;
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
-                // Список ссылок сохраняется только в случае ошибки, чтобы можно было понять какие ссылки не обработаны
-                SaveLinks(links);
             }
+            SaveLinks(links);
             SaveItemsInformation(items);
         }
         private async Task<AkibaItemInformation> ScrapInformation(string url, HttpClient client)
         {
             var response = await client.GetStringAsync(url);
+            var filteredDiv = response.GetValue("class=\"main-object__img\"", "</span></div>");
 
-            var code = response.GetValue("<div class=\"main-object__product-code\">", "</div>");
+            var code = filteredDiv.GetValue("<div class=\"main-object__product-code\">", "</div>");
             var codeClear = code.GetValue("<span>", "</span>");
-            var title = response.GetValue("<div class=\"main-object__product-title\">", "</div>");
+            var title = filteredDiv.GetValue("<div class=\"main-object__product-title\">", "</div>");
             var titleClear = title.GetValue(">", "</h1>");
-            var price = response.GetValue("<div class=\"main-object__price\">", "</div>");
+            var price = filteredDiv.GetValue("<div class=\"main-object__price\">", "</div>");
             var priceClear = price.GetValue("<span>", "</span>");
-            var qty = response.GetValue("<div class = \"information__subdescription information__subdescription--green\">", "</div>");
+            var qty = filteredDiv.GetValue("<div class = \"information__subdescription information__subdescription", "/div>");
+            var qtyClear = qty.GetValue(">", "<");
             //var description = response.GetValue("<div id=\"object-tab_01\" class=\"object-tabs__block\">", "</div>");
 
             var result = new AkibaItemInformation()
@@ -102,7 +103,7 @@ namespace Akiba.Services
                 Code = codeClear,
                 Title = titleClear,
                 Price = priceClear,
-                Qty = qty,
+                Qty = qtyClear,
                 //Description = description,
                 Url = url
             };
@@ -118,12 +119,12 @@ namespace Akiba.Services
                 sb.Append($"{link.Url};");
                 sb.AppendLine();
             }
-            sb.ToString().SaveToFile("Akiba_Incomplete_Links_");
+            sb.ToString().SaveToFile("Akiba_Links_");
         }
         private void SaveItemsInformation(List<AkibaItemInformation> items)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Код;Наименование;Цена;Количество;Описание;Ссылка;");
+            sb.AppendLine("Код;Наименование;Цена;Количество;Ссылка;");
             foreach (var item in items)
             {
                 sb.Append($"{item.Code};");
