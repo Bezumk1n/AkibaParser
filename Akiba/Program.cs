@@ -18,7 +18,17 @@ namespace Akiba
         static void Main(string[] args)
         {
             StartParsers();
-            Console.ReadLine();
+            AwaitCommand();
+        }
+
+        private static void AwaitCommand()
+        {
+            Console.WriteLine("Для завершения процесса введите 'Stop'");
+            var command = Console.ReadLine();
+            if (command.ToLower() != "stop")
+            {
+                AwaitCommand();
+            }
         }
 
         private async static void StartParsers()

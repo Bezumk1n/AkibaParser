@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Akiba.Services;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,15 +26,7 @@ namespace Akiba.Extensions
         }
         public static void SaveToFile(this string str, string prefix = "")
         {
-            try
-            {
-                var fileToWrite = $"{Environment.CurrentDirectory}/{prefix}ParsedLinks_{DateTime.Now}.xls";
-                File.WriteAllText(fileToWrite, str, Encoding.UTF8);
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Ошибка записи в файл");
-            }
+            FileService.SaveToFile(str, prefix);
         }
     }
 }

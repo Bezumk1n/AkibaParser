@@ -2,6 +2,7 @@
 using Akiba.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -50,7 +51,32 @@ namespace Akiba.Services
                         page++;
                     }
                     Console.WriteLine($"Найдено ссылок: {links.Count()}");
-                    await ParseLinks(client, links);
+
+                    var linksCount = links.Count();
+
+                    var streams = 2;
+                    var firstPart = linksCount / streams;
+                    var secondPart = linksCount - firstPart;
+
+                    var items = new List<AkibaItemInformation>();
+
+                    var firstTask = Task.Run(async () =>
+                    {
+                        var firstPartLinks = links.Take(firstPart).ToList();
+                        var list = await ParseLinks(client, firstPartLinks);
+                        items.AddRange(list);
+                    });
+                    var secondTask = Task.Run(async () =>
+                    {
+                        var secondPartLinks = links.Skip(firstPart).ToList();
+                        var list = await ParseLinks(client, secondPartLinks);
+                        items.AddRange(list);
+                    });
+
+                    await Task.WhenAll(firstTask, secondTask);
+
+                    SaveLinks(links);
+                    SaveItemsInformation(items);
                 }
                 catch (Exception ex)
                 {
@@ -62,16 +88,14 @@ namespace Akiba.Services
                 }
             }
         }
-        private async Task ParseLinks(HttpClient client, List<Link> links)
+        private async Task<List<AkibaItemInformation>> ParseLinks(HttpClient client, List<Link> links)
         {
             var items = new List<AkibaItemInformation>();
             try
             {
-                int total = links.Count;
-                int counter = 1;
                 foreach (var link in links)
                 {
-                    Console.WriteLine($"Ссылка {counter++} из {total}: {link.Url}");
+                    Console.WriteLine($"Обработано: {link.Url}");
                     var result = await ScrapInformation(link.Url, client);
                     items.Add(result);
                     link.IsParsed = true;
@@ -80,8 +104,7 @@ namespace Akiba.Services
             catch (Exception ex)
             {
             }
-            SaveLinks(links);
-            SaveItemsInformation(items);
+            return items;
         }
         private async Task<AkibaItemInformation> ScrapInformation(string url, HttpClient client)
         {
@@ -96,16 +119,14 @@ namespace Akiba.Services
             var priceClear = price.GetValue("<span>", "</span>");
             var qty = filteredDiv.GetValue("<div class = \"information__subdescription information__subdescription", "/div>");
             var qtyClear = qty.GetValue(">", "<");
-            //var description = response.GetValue("<div id=\"object-tab_01\" class=\"object-tabs__block\">", "</div>");
 
             var result = new AkibaItemInformation()
             {
+                Url = url,
                 Code = codeClear,
                 Title = titleClear,
                 Price = priceClear,
-                Qty = qtyClear,
-                //Description = description,
-                Url = url
+                Qty = qtyClear
             };
             return result;
         }
@@ -119,7 +140,7 @@ namespace Akiba.Services
                 sb.Append($"{link.Url};");
                 sb.AppendLine();
             }
-            sb.ToString().SaveToFile("Akiba_Links_");
+            sb.ToString().SaveToFile("Akiba_Links");
         }
         private void SaveItemsInformation(List<AkibaItemInformation> items)
         {
@@ -131,11 +152,10 @@ namespace Akiba.Services
                 sb.Append($"{item.Title};");
                 sb.Append($"{item.Price};");
                 sb.Append($"{item.Qty};");
-                //sb.Append($"{item.Description};"); // Глючит, нужна отладка
                 sb.Append($"{item.Url};");
                 sb.AppendLine();
             }
-            sb.ToString().SaveToFile("Akiba_");
+            sb.ToString().SaveToFile("Akiba_ParsedItems");
         }
     }
 }
