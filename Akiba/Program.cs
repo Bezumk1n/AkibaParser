@@ -17,7 +17,21 @@ namespace Akiba
     {
         static void Main(string[] args)
         {
-            StartParsers();
+            Console.WriteLine("Кого парсим?");
+            Console.WriteLine("1 - Akiba");
+            Console.WriteLine("2 - Comicstreet");
+
+            var choice = Console.ReadLine();
+            if (choice.ToLower() == "akiba" || choice == "1")
+            {
+                var akibaParser = new AkibaParserService();
+                akibaParser.Parse();
+            }
+            if (choice.ToLower() == "comicstreet" || choice == "2")
+            {
+                var comicstreetParser = new ComicstreetParserService();
+                comicstreetParser.Parse();
+            }
             AwaitCommand();
         }
 
@@ -29,12 +43,6 @@ namespace Akiba
             {
                 AwaitCommand();
             }
-        }
-
-        private async static void StartParsers()
-        {
-            var akibaParser = new AkibaParserService();
-            await akibaParser.Parse();
         }
     }
 }
