@@ -34,7 +34,6 @@ namespace Akiba
             }
             AwaitCommand();
         }
-
         private static void AwaitCommand()
         {
             Console.WriteLine("Для завершения процесса введите 'Stop'");

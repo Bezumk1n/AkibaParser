@@ -52,31 +52,10 @@ namespace Akiba.Services
                     }
                     Console.WriteLine($"Найдено ссылок: {links.Count()}");
 
-                    var linksCount = links.Count();
-
-                    var streams = 2;
-                    var firstPart = linksCount / streams;
-                    var secondPart = linksCount - firstPart;
-
-                    var items = new List<ComicstreetItemInformation>();
-
-                    //var firstTask = Task.Run(async () =>
-                    //{
-                    //    var firstPartLinks = links.Take(firstPart).ToList();
-                    //    var list = await ParseLinks(client, firstPartLinks);
-                    //    items.AddRange(list);
-                    //});
-                    //var secondTask = Task.Run(async () =>
-                    //{
-                    //    var secondPartLinks = links.Skip(firstPart).ToList();
-                    //    var list = await ParseLinks(client, secondPartLinks);
-                    //    items.AddRange(list);
-                    //});
-
-                    //await Task.WhenAll(firstTask, secondTask);
+                    var items = await ParseLinks(client, links);
 
                     SaveLinks(links);
-                    //SaveItemsInformation(items);
+                    SaveItemsInformation(items);
                 }
                 catch (Exception ex)
                 {
@@ -87,6 +66,47 @@ namespace Akiba.Services
                     Console.WriteLine($"Поиск завершён");
                 }
             }
+        }
+        private async Task<List<ComicstreetItemInformation>> ParseLinks(HttpClient client, List<Link> links)
+        {
+            var items = new List<ComicstreetItemInformation>();
+            try
+            {
+                foreach (var link in links)
+                {
+                    Console.WriteLine($"Обработано: {link.Url}");
+                    var result = await ScrapInformation(link.Url, client);
+                    items.Add(result);
+                    link.IsParsed = true;
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+            return items;
+        }
+        private async Task<ComicstreetItemInformation> ScrapInformation(string url, HttpClient client)
+        {
+            var testUrl = "https://www.comicstreet.ru/collection/manga/product/ognennyy-udar-kniga-2";
+            var response = await client.GetStringAsync(url);
+
+            var title = response.GetValue("<h1 class=\"product-title\" itemprop=\"name\">", "</h1>");
+            var code = response.GetValue("itemprop=\"gtin13\">", "</span>");
+            var price = response.GetValue("<span class=\"product-price js-product-price\">", "</span>");
+
+            var categoryMixed = response.GetValue("<div id=\"insales-section-breadcrumb\" class=\"insales-section insales-section-breadcrumb\">", "</div>");
+            var splitedCategories = categoryMixed.Split("<span itemprop=\"name\"").Skip(1).Select(q=>q.Trim());
+            var splitedCategoriesClered = splitedCategories.Select(q => q.GetValue(">", "<")).ToArray();
+
+            var result = new ComicstreetItemInformation()
+            {
+                Url = url,
+                Code = code,
+                Title = title,
+                Price = price,
+                Category = splitedCategoriesClered
+            };
+            return result;
         }
         private void SaveLinks(List<Link> links)
         {
@@ -99,6 +119,25 @@ namespace Akiba.Services
                 sb.AppendLine();
             }
             sb.ToString().SaveToFile("Comicstreet_Links");
+        }
+        private void SaveItemsInformation(List<ComicstreetItemInformation> items)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Код;Наименование;Цена;Категории;");
+            foreach (var item in items)
+            {
+                sb.Append($"{item.Code};");
+                sb.Append($"{item.Title};");
+                sb.Append($"{item.Price};");
+
+                foreach (var category in item.Category)
+                {
+                    sb.Append($"{category};");
+                }
+
+                sb.AppendLine();
+            }
+            sb.ToString().SaveToFile("Comicstreet_ParsedItems");
         }
     }
 }

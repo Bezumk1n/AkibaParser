@@ -12,6 +12,6 @@ namespace Akiba.Models
         public string Code { get; set; }
         public string Title { get; set; }
         public string Price { get; set; }
-        public string Category { get; set; }
+        public IEnumerable<string> Category { get; set; }
     }
 }
