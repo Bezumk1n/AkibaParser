@@ -87,7 +87,6 @@ namespace Akiba.Services
         }
         private async Task<ComicstreetItemInformation> ScrapInformation(string url, HttpClient client)
         {
-            var testUrl = "https://www.comicstreet.ru/collection/manga/product/ognennyy-udar-kniga-2";
             var response = await client.GetStringAsync(url);
 
             var title = response.GetValue("<h1 class=\"product-title\" itemprop=\"name\">", "</h1>");
