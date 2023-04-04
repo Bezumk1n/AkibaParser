@@ -23,7 +23,7 @@ namespace Akiba.Services
                 var links = new List<Link>();
                 try
                 {
-                    while (page != 2/*done != true*/)
+                    while (done != true)
                     {
                         Console.WriteLine($"Собираю ссылки со страницы: {page}");
                         var response = await client.GetStringAsync($"https://www.comicstreet.ru/collection/all?page={page}").ConfigureAwait(true);
