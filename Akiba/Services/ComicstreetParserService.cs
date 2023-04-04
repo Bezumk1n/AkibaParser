@@ -23,7 +23,7 @@ namespace Akiba.Services
                 var links = new List<Link>();
                 try
                 {
-                    while (done != true)
+                    while (page != 2/*done != true*/)
                     {
                         Console.WriteLine($"Собираю ссылки со страницы: {page}");
                         var response = await client.GetStringAsync($"https://www.comicstreet.ru/collection/all?page={page}").ConfigureAwait(true);
@@ -70,41 +70,44 @@ namespace Akiba.Services
         private async Task<List<ComicstreetItemInformation>> ParseLinks(HttpClient client, List<Link> links)
         {
             var items = new List<ComicstreetItemInformation>();
-            try
+            foreach (var link in links)
             {
-                foreach (var link in links)
-                {
-                    Console.WriteLine($"Обработано: {link.Url}");
-                    var result = await ScrapInformation(link.Url, client);
-                    items.Add(result);
-                    link.IsParsed = true;
-                }
-            }
-            catch (Exception ex)
-            {
+                Console.WriteLine($"Обработано: {link.Url}");
+                var result = await ScrapInformation(link.Url, client);
+                items.Add(result);
+                link.IsParsed = true;
             }
             return items;
         }
         private async Task<ComicstreetItemInformation> ScrapInformation(string url, HttpClient client)
         {
-            var response = await client.GetStringAsync(url);
-
-            var title = response.GetValue("<h1 class=\"product-title\" itemprop=\"name\">", "</h1>");
-            var code = response.GetValue("itemprop=\"gtin13\">", "</span>");
-            var price = response.GetValue("<span class=\"product-price js-product-price\">", "</span>");
-
-            var categoryMixed = response.GetValue("<div id=\"insales-section-breadcrumb\" class=\"insales-section insales-section-breadcrumb\">", "</div>");
-            var splitedCategories = categoryMixed.Split("<span itemprop=\"name\"").Skip(1).Select(q=>q.Trim());
-            var splitedCategoriesClered = splitedCategories.Select(q => q.GetValue(">", "<")).ToArray();
-
             var result = new ComicstreetItemInformation()
             {
                 Url = url,
-                Code = code,
-                Title = title,
-                Price = price,
-                Category = splitedCategoriesClered
             };
+            try
+            {
+                var response = await client.GetStringAsync(url);
+
+                var title = response.GetValue("<h1 class=\"product-title\" itemprop=\"name\">", "</h1>");
+                var code = response.GetValue("itemprop=\"gtin13\">", "</span>");
+                var price = response.GetValue("<span class=\"product-price js-product-price\">", "</span>");
+
+                var categoryMixed = response.GetValue("<div id=\"insales-section-breadcrumb\" class=\"insales-section insales-section-breadcrumb\">", "</div>");
+                var splitedCategories = categoryMixed.Split("<span itemprop=\"name\"").Skip(1).Select(q => q.Trim());
+                var splitedCategoriesClered = splitedCategories.Select(q => q.GetValue(">", "<")).ToArray();
+
+                result.Code = code;
+                result.Title = title;
+                result.Price = price;
+                result.Category = splitedCategoriesClered;
+                result.IsCompleted = true;
+            }
+            catch (Exception ex)
+            {
+                result.IsCompleted = false;
+                result.ErrorMessage = ex.Message;
+            }
             return result;
         }
         private void SaveLinks(List<Link> links)
@@ -122,9 +125,14 @@ namespace Akiba.Services
         private void SaveItemsInformation(List<ComicstreetItemInformation> items)
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Код;Наименование;Цена;Категории;");
+
+            sb.AppendLine("Статус;Ошибка;Ссылка;Код;Наименование;Цена;Категории;");
+
             foreach (var item in items)
             {
+                sb.Append($"{item.IsCompleted};");
+                sb.Append($"{item.ErrorMessage};");
+                sb.Append($"{item.Url};");
                 sb.Append($"{item.Code};");
                 sb.Append($"{item.Title};");
                 sb.Append($"{item.Price};");
@@ -133,9 +141,9 @@ namespace Akiba.Services
                 {
                     sb.Append($"{category};");
                 }
-
                 sb.AppendLine();
             }
+
             sb.ToString().SaveToFile("Comicstreet_ParsedItems");
         }
     }
